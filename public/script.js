@@ -119,6 +119,9 @@ async function performAlignment(endpoint, data, isFile = false) {
 }
 
 // Display alignment results
+// ... (previous code remains the same until displayResults function)
+
+// Display alignment results (UPDATED)
 function displayResults(data) {
   const resultsContent = document.getElementById("results-content");
 
@@ -128,6 +131,80 @@ function displayResults(data) {
             <div style="font-size: 1.5em; color: #667eea; font-weight: bold;">${
               data.alignmentScore
             }</div>
+        </div>
+
+        <!-- NEW: Operation Counts Section -->
+        <div class="result-item">
+            <div class="result-label">Operation Counts:</div>
+            <div class="operation-counts">
+                <div class="operation-item match">
+                    <span class="operation-icon">✓</span>
+                    <span class="operation-name">Matches:</span>
+                    <span class="operation-count">${
+                      data.operations.matches
+                    }</span>
+                    <span class="operation-cost">(Cost: 0)</span>
+                </div>
+                <div class="operation-item mismatch">
+                    <span class="operation-icon">✗</span>
+                    <span class="operation-name">Mismatches:</span>
+                    <span class="operation-count">${
+                      data.operations.mismatches
+                    }</span>
+                    <span class="operation-cost">(Cost: ${
+                      data.operations.mismatches
+                    })</span>
+                </div>
+                <div class="operation-item insertion">
+                    <span class="operation-icon">+</span>
+                    <span class="operation-name">Insertions:</span>
+                    <span class="operation-count">${
+                      data.operations.insertions
+                    }</span>
+                    <span class="operation-cost">(Cost: ${
+                      data.operations.insertions
+                    })</span>
+                </div>
+                <div class="operation-item deletion">
+                    <span class="operation-icon">−</span>
+                    <span class="operation-name">Deletions:</span>
+                    <span class="operation-count">${
+                      data.operations.deletions
+                    }</span>
+                    <span class="operation-cost">(Cost: ${
+                      data.operations.deletions
+                    })</span>
+                </div>
+                <div class="operation-item skip">
+                    <span class="operation-icon">⤷</span>
+                    <span class="operation-name">Skips:</span>
+                    <span class="operation-count">${
+                      data.operations.skips
+                    }</span>
+                    <span class="operation-cost">(Cost: 0)</span>
+                </div>
+                <div class="operation-item total">
+                    <span class="operation-icon">Σ</span>
+                    <span class="operation-name">Total Operations:</span>
+                    <span class="operation-count">${
+                      data.operations.total
+                    }</span>
+                    <span class="operation-cost">(Total Penalty: ${
+                      data.operations.penalty
+                    })</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Matrix Values Section -->
+        <div class="result-item">
+            <div class="result-label">Final Matrix Values:</div>
+            <div class="matrix-values">
+                <div class="matrix-item">M[m,n]: ${data.matrices.M}</div>
+                <div class="matrix-item">I[m,n]: ${data.matrices.I}</div>
+                <div class="matrix-item">D[m,n]: ${data.matrices.D}</div>
+                <div class="matrix-item">S[m,n]: ${data.matrices.S}</div>
+            </div>
         </div>
         
         <div class="result-item">

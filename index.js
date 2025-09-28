@@ -48,6 +48,7 @@ app.get("/", (req, res) => {
 });
 
 // API: Align two sequences directly
+// In your /api/align-text route:
 app.post("/api/align-text", (req, res) => {
   try {
     const { reference, query, traitInfo } = req.body;
@@ -73,6 +74,8 @@ app.post("/api/align-text", (req, res) => {
         alignmentScore: result.score,
         alignmentResult: result.alignment,
         editTranscript: result.transcript,
+        operations: result.operations, // NEW
+        matrices: result.matrices, // NEW
         traitInfo: traitInfo || "No trait information provided",
         timestamp: new Date().toISOString(),
       },

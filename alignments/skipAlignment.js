@@ -3,11 +3,17 @@
  * Based on the research paper: Dynamic Programming Alignments With Skips
  */
 
+/**
+ * Skip-Aware Global Alignment Implementation
+ * Based on the research paper: Dynamic Programming Alignments With Skips
+ */
+
 function skipAwareAlignment(reference, query) {
   const m = reference.length;
   const n = query.length;
   const INF = Number.MAX_SAFE_INTEGER;
 
+  // Initialize DP matrices: M=match/mismatch, I=insertion, D=deletion, S=skip
   const M = Array(m + 1)
     .fill()
     .map(() => Array(n + 1).fill(INF));
@@ -21,36 +27,33 @@ function skipAwareAlignment(reference, query) {
     .fill()
     .map(() => Array(n + 1).fill(INF));
 
+  // Base cases
   M[0][0] = I[0][0] = D[0][0] = S[0][0] = 0;
 
+  // Initialize first row (insertions in query)
   for (let j = 1; j <= n; j++) {
-    I[0][j] = j;
+    I[0][j] = j; // Cost of inserting j characters
     M[0][j] = D[0][j] = S[0][j] = INF;
   }
 
+  // Initialize first column (deletions/skips in reference)
   for (let i = 1; i <= m; i++) {
     if (reference[i - 1] === "-") {
-      S[i][0] = 0;
+      S[i][0] = 0; // Skip over existing gaps is free
       M[i][0] = I[i][0] = D[i][0] = INF;
     } else {
-      D[i][0] = i;
+      D[i][0] = i; // Cost of deleting i characters
       M[i][0] = I[i][0] = S[i][0] = INF;
     }
   }
 
-  // Counters for penalty types
-  let matchCount = 0,
-    mismatchCount = 0,
-    insertionCount = 0,
-    deletionCount = 0,
-    skipCount = 0;
-
-  // Fill matrices and keep track of penalties
+  // Fill DP matrices
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       const refChar = reference[i - 1];
       const queryChar = query[j - 1];
 
+      // Match/Mismatch matrix
       if (refChar !== "-") {
         const cost = refChar === queryChar ? 0 : 1;
         M[i][j] =
@@ -62,46 +65,43 @@ function skipAwareAlignment(reference, query) {
           ) + cost;
       }
 
+      // Deletion matrix (delete from query)
       D[i][j] =
         Math.min(M[i][j - 1], I[i][j - 1], D[i][j - 1], S[i][j - 1]) + 1;
 
+      // Insertion matrix (insert from reference)
       if (refChar !== "-") {
         I[i][j] =
           Math.min(M[i - 1][j], I[i - 1][j], D[i - 1][j], S[i - 1][j]) + 1;
       }
 
+      // Skip matrix (skip over gaps in reference)
       if (refChar === "-") {
-        S[i][j] = Math.min(M[i - 1][j], I[i - 1][j], D[i - 1][j], S[i - 1][j]);
+        S[i][j] = Math.min(M[i - 1][j], I[i - 1][j], D[i - 1][j], S[i - 1][j]); // Free skip
       }
     }
   }
 
-  // Find final score and which matrix it came from
+  // Find optimal score
   const finalScore = Math.min(M[m][n], I[m][n], D[m][n], S[m][n]);
 
-  // Traceback to identify penalty types
-  let aligned = generateAlignment(reference, query, M, I, D, S);
-  let transcript = generateTranscript(aligned);
+  // Simple traceback to generate alignment and transcript
+  const alignment = generateAlignment(reference, query, M, I, D, S);
+  const transcript = generateTranscript(alignment);
 
-  // Calculate penalty counts from transcript
-  for (const t of transcript) {
-    if (t === "M") matchCount++;
-    else if (t === "X") mismatchCount++;
-    else if (t === "I") insertionCount++;
-    else if (t === "D") deletionCount++;
-    else if (t === "S") skipCount++;
-  }
+  // Count operations from transcript
+  const operationCounts = countOperations(transcript);
 
   return {
     score: finalScore,
-    alignment: aligned,
+    alignment: alignment,
     transcript: transcript,
-    penalties: {
-      match: matchCount,
-      mismatch: mismatchCount,
-      insertion: insertionCount,
-      deletion: deletionCount,
-      skip: skipCount,
+    operations: operationCounts,
+    matrices: {
+      M: M[m][n] !== INF ? M[m][n] : "INF",
+      I: I[m][n] !== INF ? I[m][n] : "INF",
+      D: D[m][n] !== INF ? D[m][n] : "INF",
+      S: S[m][n] !== INF ? S[m][n] : "INF",
     },
   };
 }
@@ -172,6 +172,48 @@ function generateTranscript(alignment) {
   }
 
   return transcript;
+}
+
+// NEW FUNCTION: Count operations from transcript
+function countOperations(transcript) {
+  const counts = {
+    matches: 0,
+    mismatches: 0,
+    insertions: 0,
+    deletions: 0,
+    skips: 0,
+  };
+
+  for (let i = 0; i < transcript.length; i++) {
+    switch (transcript[i]) {
+      case "M":
+        counts.matches++;
+        break;
+      case "X":
+        counts.mismatches++;
+        break;
+      case "I":
+        counts.insertions++;
+        break;
+      case "D":
+        counts.deletions++;
+        break;
+      case "S":
+        counts.skips++;
+        break;
+    }
+  }
+
+  // Calculate total operations and penalty
+  counts.total =
+    counts.matches +
+    counts.mismatches +
+    counts.insertions +
+    counts.deletions +
+    counts.skips;
+  counts.penalty = counts.mismatches + counts.insertions + counts.deletions; // skips and matches are free
+
+  return counts;
 }
 
 module.exports = { skipAwareAlignment };
