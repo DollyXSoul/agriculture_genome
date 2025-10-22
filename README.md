@@ -4,7 +4,7 @@ This repository contains a web-based application for global sequence alignment t
 
 ### Why This Approach Matters
 
-Traditional alignment algorithms (like Needleman-Wunsch) lack a built-in mechanism to handle pre-existing gaps in a reference, often found in Multiple Sequence Alignments (MSAs) or pangenome graphs. Penalizing these known gaps can distort alignment scores and lead to biologically incorrect results. The explicit **Skip (S)** event resolves this by allowing the aligner to traverse these gaps at zero cost, leading to more accurate and informative alignments in progressive and comparative genomics contexts [file:82].
+Traditional alignment algorithms (like Needleman-Wunsch) lack a built-in mechanism to handle pre-existing gaps in a reference, often found in Multiple Sequence Alignments (MSAs) or pangenome graphs. Penalizing these known gaps can distort alignment scores and lead to biologically incorrect results. The explicit **Skip (S)** event resolves this by allowing the aligner to traverse these gaps at zero cost, leading to more accurate and informative alignments in progressive and comparative genomics contexts.
 
 ### Core Algorithm
 
