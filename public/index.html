@@ -13,16 +13,20 @@
         <p>Linear‑space DP with free skips over reference gaps</p>
       </header>
 
-      <div class="tabs">
-        <button class="tab-button active" onclick="showTab('text')">
+      <div class="tabs" role="tablist">
+        <button class="btn btn-outline tab-button active" data-target="text">
           Text Input
         </button>
-        <button class="tab-button" onclick="showTab('file')">
+        <button
+          class="btn btn-outline tab-button"
+          role="tab"
+          data-target="file"
+        >
           File Upload
         </button>
       </div>
 
-      <section id="text" class="tab-content active">
+      <section id="text" class="tab-content active" role="tabpanel">
         <form id="text-align-form">
           <div class="form-group">
             <label>Reference (use '-' for known gaps)</label>
@@ -71,7 +75,7 @@
         </form>
       </section>
 
-      <section id="file" class="tab-content">
+      <section id="file" class="tab-content" role="tabpanel">
         <form id="file-align-form" enctype="multipart/form-data">
           <div class="form-group">
             <label>Reference FASTA/.fna</label>
@@ -147,6 +151,38 @@
           </div>
         </div>
       </div>
+    </div>
+    <div class="result-item" id="scoring-info">
+      <h3>Scoring &amp; Interpretation</h3>
+
+
+
+  <p>The aligner uses four DP states: M (match/mismatch), I (insertion), D (deletion), and S (skip over an existing gap), and the final score is min{ M<sub>m,n</sub>, I<sub>m,n</sub>, D<sub>m,n</sub>, S<sub>m,n</sub> }.</p>
+
+  <ul>
+    <li>Match (M): cost 0</li>
+    <li>Mismatch (X): cost 1</li>
+    <li>Insertion (I): cost 1 per base (unit gaps)</li>
+    <li>Deletion (D): cost 1 per base (unit gaps)</li>
+    <li>Skip (S): cost 0 (free across ‘-’ in the reference)</li>
+  </ul>
+
+  <p>Interpretation: with unit costs, the score equals the number of penalized edits (X/I/D) needed to transform the query into the reference while treating pre‑existing reference gaps as free skips.</p>
+
+ <ul>
+  <li>Score 0: identical modulo free skips; transcript contains only M and S, so no mismatches or new gaps were needed. </li>
+  <li>Score 1–10 (unit costs): extremely close sequences; roughly up to 10 penalized edits total (X/I/D) across the region. </li>
+  <li>Score 20 (over L<sub>eff</sub>=5,000): ~0.4% divergence; PID ≈ 1 − 20/5000 = 99.6%. </li>
+  <li>Score 50 (over L<sub>eff</sub>=5,000): ~1% divergence; PID ≈ 1 − 50/5000 = 99%.</li>
+  <li>Score 100 (over L<sub>eff</sub>=5,000): ~2% divergence; PID ≈ 1 − 100/5000 = 98%.</li>
+  
+</ul>
+
+
+  
+</div>
+
+
     </div>
     <script src="script.js"></script>
   </body>

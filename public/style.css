@@ -29,24 +29,34 @@ header p {
   gap: 8px;
   margin: 8px 0 16px;
 }
-.tab-button {
-  padding: 10px 14px;
-  border: 1px solid #ddd;
-  background: #fafafa;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.tab-button.active {
-  background: #e9f0ff;
-  border-color: #c7d3ff;
-  color: #2940c6;
-  font-weight: 600;
-}
+
 .tab-content {
   display: none;
 }
 .tab-content.active {
   display: block;
+}
+
+.tab-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f2937;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-button.active,
+.tab-button[aria-selected="true"] {
+  background: #2940c6;
+  color: #fff;
+  border-color: #2940c6;
+}
+
+.tab-button:focus-visible {
+  outline: 3px solid #2940c6;
+  outline-offset: 2px;
 }
 .form-group {
   margin: 12px 0;
@@ -142,4 +152,54 @@ button {
 .op-S {
   background: #f3e5f5;
   color: #4a148c;
+}
+#perpos,
+#perpos-content {
+  overflow-x: auto; /* show a horizontal scrollbar only when needed */
+  max-width: 100%; /* constrain to the content box */
+}
+
+.mono-row {
+  white-space: pre; /* preserve spacing and prevent line wrapping */
+  display: block; /* ensure each row starts on a new line */
+  margin: 2px 0;
+}
+
+.result-item {
+  margin-left: 3rem;
+  margin-right: 3rem;
+}
+
+#scoring-info .scoring-body {
+  color: #374151;
+  font-size: 0.95rem;
+}
+#scoring-info ul {
+  margin: 8px 0 0 18px;
+}
+#scoring-info li {
+  margin: 2px 0;
+}
+
+#scoring-info .scoring-body {
+  color: #374151;
+  font-size: 0.95rem;
+  margin-top: 8px;
+}
+#scoring-info ul {
+  margin: 8px 0 8px 18px;
+}
+#scoring-info li {
+  margin: 2px 0;
+}
+#scoring-info .score-examples {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+}
+#scoring-info .score-examples div {
+  background: #f9fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 6px 8px;
 }
