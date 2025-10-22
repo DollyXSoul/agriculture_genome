@@ -1,125 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agricultural Genomics Tool - Skip-Aware Alignment</title>
+    <meta charset="utf-8" />
+    <title>Agricultural Genomics Align</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="container">
       <header>
-        <h1>🌾 Agricultural Genomics Tool</h1>
-        <p>Skip-Aware ED-String Alignment for Crop Improvement</p>
+        <h1>🌾 Skip‑Aware Alignment</h1>
+        <p>Linear‑space DP with free skips over reference gaps</p>
       </header>
 
       <div class="tabs">
-        <button class="tab-button active" onclick="showTab('text-input')">
+        <button class="tab-button active" onclick="showTab('text')">
           Text Input
         </button>
-        <button class="tab-button" onclick="showTab('file-upload')">
+        <button class="tab-button" onclick="showTab('file')">
           File Upload
-        </button>
-        <button class="tab-button" onclick="showTab('examples')">
-          Examples
         </button>
       </div>
 
-      <!-- Text Input Tab -->
-      <div id="text-input" class="tab-content active">
+      <section id="text" class="tab-content active">
         <form id="text-align-form">
           <div class="form-group">
-            <label for="reference"
-              >Reference Sequence (use '-' for existing gaps):</label
-            >
+            <label>Reference (use '-' for known gaps)</label>
             <textarea
               id="reference"
               name="reference"
-              placeholder="e.g., ATGCG-TAACGTCGAT"
+              placeholder="ACGT-ACGT"
               required
             ></textarea>
           </div>
-
           <div class="form-group">
-            <label for="query">Query Sequence:</label>
+            <label>Query</label>
             <textarea
               id="query"
               name="query"
-              placeholder="e.g., ATGCGTAACGTCGAT"
+              placeholder="ACGTACGT"
               required
             ></textarea>
           </div>
-
           <div class="form-group">
-            <label for="trait-info">Trait Information (optional):</label>
+            <label>Band width (optional)</label>
             <input
-              type="text"
-              id="trait-info"
-              name="traitInfo"
-              placeholder="e.g., Drought tolerance gene"
+              id="textBand"
+              name="band"
+              type="number"
+              placeholder="e.g., 5000"
             />
           </div>
-
-          <button type="submit">🧬 Align Sequences</button>
+          <div class="form-group">
+            <label
+              ><input type="checkbox" id="textCounts" name="wantCounts" />
+              detailed counts (short inputs only)</label
+            >
+          </div>
+          <div class="form-group">
+            <label
+              ><input
+                type="checkbox"
+                id="textTranscript"
+                name="wantTranscript"
+              />
+              show per-position operations</label
+            >
+          </div>
+          <button type="submit">🧬 Align</button>
         </form>
-      </div>
+      </section>
 
-      <!-- File Upload Tab -->
-      <div id="file-upload" class="tab-content">
+      <section id="file" class="tab-content">
         <form id="file-align-form" enctype="multipart/form-data">
           <div class="form-group">
-            <label for="reference-file">Reference FASTA File:</label>
+            <label>Reference FASTA/.fna</label>
             <input
               type="file"
               id="reference-file"
               name="referenceFile"
-              accept=".fasta,.fa,.txt"
+              accept=".fa,.fasta,.fna,.txt"
               required
             />
           </div>
-
           <div class="form-group">
-            <label for="query-file">Query FASTA File:</label>
+            <label>Query FASTA/.fna</label>
             <input
               type="file"
               id="query-file"
               name="queryFile"
-              accept=".fasta,.fa,.txt"
+              accept=".fa,.fasta,.fna,.txt"
               required
             />
           </div>
-
           <div class="form-group">
-            <label for="file-trait-info">Trait Information (optional):</label>
+            <label>Max bases per file (default 300,000)</label>
             <input
-              type="text"
-              id="file-trait-info"
-              name="traitInfo"
-              placeholder="e.g., Disease resistance"
+              id="maxLen"
+              name="maxLen"
+              type="number"
+              value="300000"
+              min="1000"
+              step="1000"
             />
+          </div>
+          <div class="form-group">
+            <label>Band width (optional)</label>
+            <input
+              id="band"
+              name="band"
+              type="number"
+              placeholder="e.g., 5000"
+            />
+          </div>
+          <div class="form-group">
+            <label
+              ><input type="checkbox" id="wantCounts" name="wantCounts" />
+              detailed counts (short inputs only)</label
+            >
+          </div>
+          <div class="form-group">
+            <label
+              ><input
+                type="checkbox"
+                id="wantTranscript"
+                name="wantTranscript"
+              />
+              show per-position operations (small inputs only)</label
+            >
           </div>
 
           <button type="submit">📁 Upload & Align</button>
         </form>
-      </div>
+      </section>
 
-      <!-- Examples Tab -->
-      <div id="examples" class="tab-content">
-        <div id="examples-container">
-          <p>Loading examples...</p>
+      <div id="loading" style="display: none">🔄 Running alignment…</div>
+      <div id="results" style="display: none">
+        <h2>Results</h2>
+        <div id="results-content"></div>
+        <div id="perpos" class="result-item" style="display: none">
+          <div class="result-label">Per-position alignment</div>
+          <div id="perpos-content"></div>
+          <div style="margin-top: 6px; font-size: 0.9em; color: #666">
+            M=match, X=mismatch, I=insert (extra reference base), D=delete
+            (extra query base), S=skip (free over ‘-’ in reference)
+          </div>
         </div>
       </div>
-
-      <div id="loading" style="display: none">
-        <p>🔄 Processing alignment...</p>
-      </div>
-
-      <div id="results" style="display: none">
-        <h2>Alignment Results</h2>
-        <div id="results-content"></div>
-      </div>
     </div>
-
     <script src="script.js"></script>
   </body>
 </html>

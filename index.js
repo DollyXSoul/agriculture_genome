@@ -1,210 +1,189 @@
 const express = require("express");
 const multer = require("multer");
+const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const cors = require("cors");
 const bodyParser = require("body-parser");
-const { skipAwareAlignment } = require("./alignments/skipAlignment");
+
+const { readFastaRegion } = require("./utils/fastaStream");
+const {
+  skipAwareScoreLinear,
+  skipAwareCountsSmall,
+  skipAwareAlignSmall,
+} = require("./alignments/skipAlignmentLinear");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: "2mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
-// Configure multer for file uploads
+// uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = "./uploads";
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
+    const d = path.join(__dirname, "uploads");
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+    cb(null, d);
   },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
+  filename: (req, file, cb) => cb(null, `${Date.now()}_${file.originalname}`),
 });
+const upload = multer({ storage });
 
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = [".fasta", ".fa", ".txt", ".seq"];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only FASTA files are allowed!"));
-    }
-  },
-});
+// Home
+app.get("/", (_req, res) =>
+  res.sendFile(path.join(__dirname, "public", "index.html"))
+);
 
-// Routes
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// API: Align two sequences directly
-// In your /api/align-text route:
+// ALIGN TEXT (short inputs; returns score + counts)
 app.post("/api/align-text", (req, res) => {
   try {
-    const { reference, query, traitInfo } = req.body;
+    const reference = (req.body.reference || "").toUpperCase();
+    const query = (req.body.query || "").toUpperCase();
+    const wantCounts = req.body.wantCounts === "true";
+    const wantTranscript = req.body.wantTranscript === "true";
+    const bandVal = req.body.band ? Number(req.body.band) : null;
 
     if (!reference || !query) {
-      return res.status(400).json({
-        error: "Both reference and query sequences are required",
-      });
+      return res
+        .status(400)
+        .json({ error: "reference and query are required" });
     }
 
-    console.log("Aligning sequences:", { reference, query });
+    const t0 = Date.now();
+    let perPos = null;
+    if (wantTranscript) {
+      perPos = skipAwareAlignSmall(reference, query);
+    }
+    const { score } =
+      perPos ?? skipAwareScoreLinear(reference, query, { band: bandVal });
 
-    const result = skipAwareAlignment(
-      reference.toUpperCase(),
-      query.toUpperCase()
-    );
+    let ops = null;
+    if (wantCounts && reference.length <= 50000 && query.length <= 50000) {
+      ops = skipAwareCountsSmall(reference, query);
+    }
+    const dt = Date.now() - t0;
 
-    res.json({
+    return res.json({
       success: true,
       data: {
-        reference: reference.toUpperCase(),
-        query: query.toUpperCase(),
-        alignmentScore: result.score,
-        alignmentResult: result.alignment,
-        editTranscript: result.transcript,
-        operations: result.operations, // NEW
-        matrices: result.matrices, // NEW
-        traitInfo: traitInfo || "No trait information provided",
-        timestamp: new Date().toISOString(),
+        alignmentScore: score,
+        perPosition: perPos, // {alignedRef, alignedQry, ops} or null
+        operations: ops,
+        seqLengths: { ref: reference.length, qry: query.length },
+        runtimeMs: dt,
+        note: perPos
+          ? "Per-position transcript generated with exact DP"
+          : "Transcript disabled (use checkbox) or large input",
       },
     });
-  } catch (error) {
-    console.error("Alignment error:", error);
-    res.status(500).json({
-      error: "Internal server error during alignment",
-      details: error.message,
-    });
+  } catch (e) {
+    console.error(e);
+    return res
+      .status(500)
+      .json({ error: "alignment failed", details: e.message });
   }
 });
 
-// API: Upload and align FASTA files
+// ALIGN FILES (streams .fna and caps regions; returns score, counts optional)
 app.post(
   "/api/align-files",
   upload.fields([
     { name: "referenceFile", maxCount: 1 },
     { name: "queryFile", maxCount: 1 },
   ]),
-  (req, res) => {
+  async (req, res) => {
     try {
-      const { traitInfo } = req.body;
-
-      if (!req.files.referenceFile || !req.files.queryFile) {
-        return res.status(400).json({
-          error: "Both reference and query files are required",
-        });
+      if (!req.files?.referenceFile || !req.files?.queryFile) {
+        return res
+          .status(400)
+          .json({ error: "referenceFile and queryFile are required" });
       }
 
-      // Read FASTA files
-      const refContent = fs.readFileSync(
-        req.files.referenceFile[0].path,
-        "utf8"
-      );
-      const queryContent = fs.readFileSync(req.files.queryFile[0].path, "utf8");
+      const {
+        contigRef,
+        contigQry,
+        startRef,
+        endRef,
+        startQry,
+        endQry,
+        maxLen,
+        band,
+      } = req.body;
 
-      // Parse FASTA (simple parser)
-      const refSequence = parseFASTA(refContent);
-      const querySequence = parseFASTA(queryContent);
+      const maxBps = maxLen ? Number(maxLen) : 300000;
 
-      if (!refSequence || !querySequence) {
-        return res.status(400).json({
-          error: "Invalid FASTA format",
-        });
+      const refPath = req.files.referenceFile[0].path;
+      const qryPath = req.files.queryFile[0].path;
+
+      const refSeq = await readFastaRegion(refPath, {
+        contig: contigRef || null,
+        start: startRef ? Number(startRef) : 1,
+        end: endRef ? Number(endRef) : null,
+        maxLen: maxBps,
+        takeFirstContig: !contigRef,
+      });
+
+      const qrySeq = await readFastaRegion(qryPath, {
+        contig: contigQry || null,
+        start: startQry ? Number(startQry) : 1,
+        end: endQry ? Number(endQry) : null,
+        maxLen: maxBps,
+        takeFirstContig: !contigQry,
+      });
+      console.log("Lengths:", refSeq.length, qrySeq.length);
+      // clean temp uploads
+      try {
+        fs.unlinkSync(refPath);
+        fs.unlinkSync(qryPath);
+      } catch {}
+
+      if (!refSeq || !qrySeq) {
+        return res
+          .status(400)
+          .json({ error: "no sequence data found in one or both files" });
       }
 
-      const result = skipAwareAlignment(refSequence, querySequence);
+      const wantCounts = req.body.wantCounts === "true";
+      const wantTranscript = req.body.wantTranscript === "true";
+      const bandWidth = req.body.band ? Number(req.body.band) : null;
 
-      // Clean up uploaded files
-      fs.unlinkSync(req.files.referenceFile[0].path);
-      fs.unlinkSync(req.files.queryFile[0].path);
+      const small = refSeq.length <= 50000 && qrySeq.length <= 50000;
+      let perPos = null;
+      const t0 = Date.now();
+      if (wantTranscript && small) {
+        perPos = skipAwareAlignSmall(refSeq, qrySeq);
+      }
+      const { score } =
+        perPos ?? skipAwareScoreLinear(refSeq, qrySeq, { band: bandWidth });
+      let ops = null;
+      if (wantCounts && small) ops = skipAwareCountsSmall(refSeq, qrySeq);
+      const dt = Date.now() - t0;
 
-      res.json({
+      return res.json({
         success: true,
         data: {
-          reference: refSequence.substring(0, 100) + "...", // Show first 100 chars
-          query: querySequence.substring(0, 100) + "...",
-          alignmentScore: result.score,
-          alignmentResult: result.alignment,
-          editTranscript: result.transcript,
-          traitInfo: traitInfo || "No trait information provided",
-          timestamp: new Date().toISOString(),
+          alignmentScore: score,
+          perPosition: perPos, // null if large
+          operations: ops,
+          seqLengths: { ref: refSeq.length, qry: qrySeq.length },
+          params: { band: bandWidth },
+          runtimeMs: dt,
+          note: perPos
+            ? "Per-position transcript generated (small inputs)"
+            : "Transcript omitted to keep memory linear on large inputs",
         },
       });
-    } catch (error) {
-      console.error("File alignment error:", error);
-      res.status(500).json({
-        error: "Internal server error during file alignment",
-        details: error.message,
-      });
+    } catch (e) {
+      console.error(e);
+      return res
+        .status(500)
+        .json({ error: "file alignment failed", details: e.message });
     }
   }
 );
 
-// API: Get example sequences
-app.get("/api/examples", (req, res) => {
-  res.json({
-    examples: [
-      {
-        name: "Rice Drought Tolerance",
-        reference: "ATGCG-TAACGTCGAT",
-        query: "ATGCGTAACGTCGAT",
-        trait: "Drought tolerance - OsDREB gene region",
-      },
-      {
-        name: "Wheat Disease Resistance",
-        reference: "CCGTA-AATGCCTAG",
-        query: "CCGTAAAATGCCTAG",
-        trait: "Powdery mildew resistance - Pm3 gene",
-      },
-      {
-        name: "Corn Yield Enhancement",
-        reference: "GGAAT-TCGCAATG",
-        query: "GGAATTTCGCAATG",
-        trait: "Kernel development - ZmKRN4 gene",
-      },
-    ],
-  });
-});
-
-// Simple FASTA parser
-function parseFASTA(content) {
-  const lines = content.split("\n");
-  let sequence = "";
-
-  for (let line of lines) {
-    line = line.trim();
-    if (line.startsWith(">")) {
-      continue; // Skip header lines
-    }
-    sequence += line.toUpperCase();
-  }
-
-  return sequence || null;
-}
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    return res.status(400).json({ error: error.message });
-  }
-  res.status(500).json({ error: "Internal server error" });
-});
-
 app.listen(PORT, () => {
-  console.log(
-    `🚀 Agricultural Genomics Tool running on http://localhost:${PORT}`
-  );
-  console.log(`📊 Upload endpoint: http://localhost:${PORT}/api/align-files`);
-  console.log(`🧬 Text alignment: http://localhost:${PORT}/api/align-text`);
+  console.log(`🚀 Server on http://localhost:${PORT}`);
 });
