@@ -74,6 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }</div></div>
   `;
 
+    handleDpView(d.dpView);
+
     // Operation counts (small inputs with wantCounts=true)
     if (d.operations) {
       html += `
@@ -134,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
       wantTranscript: document.getElementById("textTranscript").checked
         ? "true"
         : "false",
+      wantDpView: document.getElementById("wantDpViewText").checked
+        ? "true"
+        : "false",
     };
     await perform("/api/align-text", data, false);
   };
@@ -152,6 +157,11 @@ document.addEventListener("DOMContentLoaded", () => {
       "wantTranscript",
       document.getElementById("wantTranscript").checked ? "true" : "false"
     );
+    fd.append(
+      "wantDpView",
+      document.getElementById("wantDpViewFile").checked ? "true" : "false"
+    );
+
     await perform("/api/align-files", fd, true);
   };
 
@@ -203,5 +213,59 @@ document.addEventListener("DOMContentLoaded", () => {
           "'": "&#39;",
         }[m])
     );
+  }
+
+  function renderDpTable(dpView, stateKey) {
+    const { rows, cols, refPrefix, qryPrefix, infValue } = dpView;
+    const INF = infValue ?? 1e12; // fallback
+    const mat = dpView[stateKey];
+
+    let html = '<table class="dp-table"><thead><tr><th></th><th>∅</th>';
+    for (let j = 0; j < cols - 1; j++) {
+      const c = qryPrefix[j] ?? "";
+      html += `<th>${c || "&nbsp;"}</th>`;
+    }
+    html += "</tr></thead><tbody>";
+
+    for (let i = 0; i < rows; i++) {
+      html += "<tr>";
+      if (i === 0) {
+        html += "<th>∅</th>";
+      } else {
+        const c = refPrefix[i - 1] ?? "";
+        html += `<th>${c || "&nbsp;"}</th>`;
+      }
+      for (let j = 0; j < cols; j++) {
+        const v = mat[i][j];
+        const isInf = !Number.isFinite(v) || v >= INF / 2;
+        html += `<td class="${isInf ? "dp-inf" : ""}">${isInf ? "∞" : v}</td>`;
+      }
+      html += "</tr>";
+    }
+
+    html += "</tbody></table>";
+    return html;
+  }
+
+  function handleDpView(dpView) {
+    const dpSection = document.getElementById("dp-section");
+    const dpContainer = document.getElementById("dp-table-container");
+    if (!dpView) {
+      dpSection.hidden = true;
+      return;
+    }
+    dpSection.hidden = false;
+    dpContainer.innerHTML = renderDpTable(dpView, "M");
+
+    document.querySelectorAll(".dp-tab").forEach((btn) => {
+      btn.onclick = () => {
+        document
+          .querySelectorAll(".dp-tab")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const state = btn.getAttribute("data-state"); // 'M','I','D','S'
+        dpContainer.innerHTML = renderDpTable(dpView, state);
+      };
+    });
   }
 });

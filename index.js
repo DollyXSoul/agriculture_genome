@@ -36,6 +36,34 @@ app.get("/", (_req, res) =>
   res.sendFile(path.join(__dirname, "public", "index.html"))
 );
 
+function buildDpView(reference, query, matrices, cap = 20) {
+  if (!matrices) return null;
+  const m = reference.length;
+  const n = query.length;
+  const rows = Math.min(m + 1, cap);
+  const cols = Math.min(n + 1, cap);
+
+  const sliceMatrix = (mat) => {
+    const out = [];
+    for (let i = 0; i < rows; i++) {
+      out.push(mat[i].slice(0, cols));
+    }
+    return out;
+  };
+
+  return {
+    rows,
+    cols,
+    refPrefix: reference.slice(0, rows - 1),
+    qryPrefix: query.slice(0, cols - 1),
+    M: sliceMatrix(matrices.M),
+    I: sliceMatrix(matrices.I),
+    D: sliceMatrix(matrices.D),
+    S: sliceMatrix(matrices.S),
+    infValue: 1e12,
+  };
+}
+
 // ALIGN TEXT (short inputs; returns score + counts)
 app.post("/api/align-text", (req, res) => {
   try {
@@ -43,6 +71,7 @@ app.post("/api/align-text", (req, res) => {
     const query = (req.body.query || "").toUpperCase();
     const wantCounts = req.body.wantCounts === "true";
     const wantTranscript = req.body.wantTranscript === "true";
+    const wantDpView = req.body.wantDpView === "true"; // NEW
     const bandVal = req.body.band ? Number(req.body.band) : null;
 
     if (!reference || !query) {
@@ -53,11 +82,28 @@ app.post("/api/align-text", (req, res) => {
 
     const t0 = Date.now();
     let perPos = null;
+    let dpView = null;
+    let score;
+
     if (wantTranscript) {
-      perPos = skipAwareAlignSmall(reference, query);
+      const smallRes = skipAwareAlignSmall(reference, query, {
+        withMatrices: wantDpView,
+      });
+      perPos = {
+        alignedRef: smallRes.alignedRef,
+        alignedQry: smallRes.alignedQry,
+        ops: smallRes.ops,
+      };
+      score = smallRes.score;
+      if (wantDpView && smallRes.matrices) {
+        dpView = buildDpView(reference, query, smallRes.matrices);
+      }
+    } else {
+      const resScore = skipAwareScoreLinear(reference, query, {
+        band: bandVal,
+      });
+      score = resScore.score;
     }
-    const { score } =
-      perPos ?? skipAwareScoreLinear(reference, query, { band: bandVal });
 
     let ops = null;
     if (wantCounts && reference.length <= 50000 && query.length <= 50000) {
@@ -69,8 +115,9 @@ app.post("/api/align-text", (req, res) => {
       success: true,
       data: {
         alignmentScore: score,
-        perPosition: perPos, // {alignedRef, alignedQry, ops} or null
+        perPosition: perPos,
         operations: ops,
+        dpView,
         seqLengths: { ref: reference.length, qry: query.length },
         runtimeMs: dt,
         note: perPos
@@ -109,7 +156,6 @@ app.post(
         startQry,
         endQry,
         maxLen,
-        band,
       } = req.body;
 
       const maxBps = maxLen ? Number(maxLen) : 300000;
@@ -132,7 +178,9 @@ app.post(
         maxLen: maxBps,
         takeFirstContig: !contigQry,
       });
+
       console.log("Lengths:", refSeq.length, qrySeq.length);
+
       // clean temp uploads
       try {
         fs.unlinkSync(refPath);
@@ -147,26 +195,56 @@ app.post(
 
       const wantCounts = req.body.wantCounts === "true";
       const wantTranscript = req.body.wantTranscript === "true";
+      const wantDpView = req.body.wantDpView === "true"; // NEW
+      console.log("FILE wantDpView =", req.body.wantDpView);
       const bandWidth = req.body.band ? Number(req.body.band) : null;
 
       const small = refSeq.length <= 50000 && qrySeq.length <= 50000;
+
       let perPos = null;
+      let dpView = null;
+      let score;
+
       const t0 = Date.now();
+
       if (wantTranscript && small) {
-        perPos = skipAwareAlignSmall(refSeq, qrySeq);
+        // ask small-DP function to also give matrices when we want the DP view
+        const smallRes = skipAwareAlignSmall(refSeq, qrySeq, {
+          withMatrices: wantDpView,
+        });
+
+        perPos = {
+          alignedRef: smallRes.alignedRef,
+          alignedQry: smallRes.alignedQry,
+          ops: smallRes.ops,
+        };
+        score = smallRes.score;
+
+        if (wantDpView && smallRes.matrices) {
+          dpView = buildDpView(refSeq, qrySeq, smallRes.matrices);
+        }
+      } else {
+        // large inputs or transcript disabled → linear-space score only
+        const resScore = skipAwareScoreLinear(refSeq, qrySeq, {
+          band: bandWidth,
+        });
+        score = resScore.score;
       }
-      const { score } =
-        perPos ?? skipAwareScoreLinear(refSeq, qrySeq, { band: bandWidth });
+
       let ops = null;
-      if (wantCounts && small) ops = skipAwareCountsSmall(refSeq, qrySeq);
+      if (wantCounts && small) {
+        ops = skipAwareCountsSmall(refSeq, qrySeq);
+      }
+
       const dt = Date.now() - t0;
 
       return res.json({
         success: true,
         data: {
           alignmentScore: score,
-          perPosition: perPos, // null if large
+          perPosition: perPos, // null if large or transcript off
           operations: ops,
+          dpView, // NEW: DP snapshot for small inputs
           seqLengths: { ref: refSeq.length, qry: qrySeq.length },
           params: { band: bandWidth },
           runtimeMs: dt,

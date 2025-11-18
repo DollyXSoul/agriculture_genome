@@ -203,3 +203,148 @@ button {
   border-radius: 6px;
   padding: 6px 8px;
 }
+
+/* DP section container */
+#dp-section {
+  margin-top: 16px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fafbff;
+  padding: 12px 14px;
+}
+
+/* header row with tabs + badge */
+.dp-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dp-tabs {
+  display: inline-flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dp-tab {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+}
+
+.dp-tab.active {
+  background: #2940c6;
+  color: #f9fafb;
+  border-color: #2940c6;
+}
+
+.dp-badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e5e7ff;
+  color: #4b5563;
+}
+
+/* scrolling container */
+#dp-table-container {
+  overflow-x: auto;
+  margin-top: 4px;
+}
+
+/* table: responsive sizing */
+.dp-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: clamp(
+    0.7rem,
+    0.85vw,
+    0.9rem
+  ); /* scale with viewport, but keep min/max */
+  min-width: max(480px, 60%); /* stretch a bit on big screens */
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* cells */
+.dp-table th,
+.dp-table td {
+  border: 1px solid #e5e7eb;
+  padding: 4px 8px; /* slightly larger padding */
+  text-align: center;
+  white-space: nowrap;
+  min-width: 2.4rem; /* ensure a comfortable width */
+}
+
+/* header cells */
+.dp-table thead th {
+  background: #f3f4ff;
+  color: #111827;
+  font-weight: 600;
+}
+
+/* row header */
+.dp-table tbody th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+/* zebra striping */
+.dp-table tbody tr:nth-child(odd) td {
+  background: #f9fafb;
+}
+
+/* sticky first column for row labels */
+.dp-table td:first-child,
+.dp-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+/* ∞ styling */
+.dp-inf {
+  color: #9ca3af;
+}
+
+/* note text */
+.dp-note {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+/* MEDIA QUERIES */
+
+/* On very small screens, shrink a bit so it fits */
+@media (max-width: 600px) {
+  .dp-table {
+    font-size: 0.7rem;
+    min-width: 100%;
+  }
+  .dp-table th,
+  .dp-table td {
+    padding: 2px 4px;
+    min-width: 1.8rem;
+  }
+}
+
+/* On large desktop screens, make cells comfortably bigger */
+@media (min-width: 1280px) {
+  .dp-table {
+    font-size: 0.9rem;
+  }
+  .dp-table th,
+  .dp-table td {
+    padding: 6px 10px;
+    min-width: 3rem;
+  }
+}
