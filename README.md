@@ -26,18 +26,54 @@ The final optimal alignment score is the minimum value found in the last cell ac
 - **Streaming FASTA Reader**: Processes large `.fna` files in chunks, ensuring the application's memory footprint remains low. Users can specify a `maxLen` to cap the region size.
 - **Interactive UI**: A simple web interface for aligning either pasted text or uploaded files.
 - **Per-Position Visualization**: For small inputs, the UI renders a colored "operation track" that shows the specific operation (Match, Mismatch, Insertion, Deletion, or Skip) at each position.
-- **Optional Banding**: For long, similar sequences, a diagonal band can be specified to reduce computation time.
 
-## How to Use the App
+## Software Requirements
 
-1.  **Clone and run the project**:
+- **Node.js**: v18.x or higher
+- **npm (Node Package Manager)**: v9.x or higher
+- **Express**: v4.x
+- **Multer**: v1.4.x
+- **cors**: v2.8.x
+- **body-parser**: v1.20.x
 
-    ```
-    npm install
-    npm run dev
-    ```
+**Frontend:**
 
-    Navigate to `http://localhost:3000`.
+- HTML5
+- CSS3 (see included `style.css`)
+- Vanilla JavaScript (see included `script.js`)
+
+**Tested on:**
+
+- Ubuntu 22.04, macOS 13 Ventura, Windows 10/11
+- Chrome v117+, Firefox v120+, Edge v117+
+
+---
+
+## Installation & Running
+
+1. **Clone the repository:**
+
+   ```
+   git clone https://github.com/DollyXSoul/agriculture_genome.git
+   cd agriculture_genome
+   ```
+
+2. **Install dependencies:**
+
+   ```
+   npm install
+   ```
+
+3. **Start the web application:**
+   ```
+   npm run dev
+   ```
+   By default, this launches the local web server at [http://localhost:3000](http://localhost:3000).
+
+**Note:**
+
+- Make sure you have Node.js (v18.x or higher) and npm (v9.x or higher) installed on your system.
+- For best results, use Chrome, Firefox, or Edge on Ubuntu 22.04, macOS 13 Ventura, or Windows 10/11.
 
 2.  **Choose an Input Method**:
 
@@ -48,6 +84,16 @@ The final optimal alignment score is the minimum value found in the last cell ac
     - **Max bases per file**: (File mode only) Limits the number of base pairs read from each file to prevent excessive memory usage. Defaults to 300,000.
     - **Band width**: (Optional) Restricts the DP calculation to a diagonal band, speeding up alignment for similar sequences.
     - **Detailed counts / per-position operations**: Check these boxes to compute and display detailed statistics and the visual alignment track. This is only enabled for "small" inputs (≤50,000 bp by default) to ensure performance.
+
+## Output and GUI
+
+| Home                      | Output                     | DP Table(Skip)            |
+| ------------------------- | -------------------------- | ------------------------- |
+| ![](screenshots/home.png) | ![](screenshots/align.png) | ![](screenshots/skip.png) |
+
+| DP Table(Match)            | DP Table(Insertion)            | DP Table(Deletion)          |
+| -------------------------- | ------------------------------ | --------------------------- |
+| ![](screenshots/match.png) | ![](screenshots/insertion.png) | ![](screenshots/delete.png) |
 
 ## Understanding the Scoring
 
@@ -90,6 +136,15 @@ To compare scores across alignments of different lengths, you can normalize it b
 This work is an implementation of concepts presented in the following research. If you use this tool in your work, please cite the foundational papers on skip-aware alignment.
 
 - N. Mwaniki, N. Pisanti, "Dynamic Programming Alignments With Skips," _IEEE Access_, 2025.
+
+## Team Members
+
+**Team 05**
+
+- Ameesha Patel (252IT003)
+- Dolly Chauhan (252IT007)
+- Samriddhi Sharma (252IT024)
+- Sakshi Vispute (252IT032)
 
 ## License
 
